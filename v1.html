@@ -1,0 +1,400 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>LFF Task (Local jsPsych)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- ✅ Local jsPsych CSS -->
+  <link rel="stylesheet" href="jspsych/jspsych.css">
+
+  <!-- ✅ Local jsPsych core + plugins -->
+  <script src="jspsych/jspsych.js"></script>
+  <script src="jspsych/plugin-preload.js"></script>
+  <script src="jspsych/plugin-html-keyboard-response.js"></script>
+  <script src="jspsych/plugin-html-button-response.js"></script>
+
+  <style>
+    body { background: #fafafa; font-family: Arial, sans-serif; color: #111; }
+
+    .centered {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 24px;
+      line-height: 1.45;
+    }
+
+    .question-title {
+      font-size: 22px;
+      font-weight: 600;
+      margin-bottom: 16px;
+    }
+
+    .image-choice-container {
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      gap: 40px;
+      margin-top: 18px;
+      flex-wrap: wrap;
+    }
+
+    button.choice-btn {
+      padding: 0;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+    }
+
+    .choice-img {
+      max-width: 360px;
+      max-height: 320px;
+      border: 2px solid #ddd;
+      border-radius: 6px;
+      transition: transform 0.05s ease, box-shadow 0.05s ease;
+      background: #fff;
+      display: block;
+    }
+
+    .choice-img:hover {
+      transform: scale(1.02);
+      box-shadow: 0 0 0 4px rgba(35, 132, 255, 0.2);
+    }
+
+    .incorrect-banner {
+      font-size: 30px;
+      font-weight: 700;
+      color: #b00020;
+      text-align: center;
+      margin: 16px 0 24px;
+    }
+
+    .press-space {
+      text-align: center;
+      color: #333;
+      font-size: 16px;
+      margin-top: 24px;
+    }
+
+    .mouse-note {
+      text-align: center;
+      color: #555;
+      font-size: 14px;
+      margin-top: 10px;
+    }
+
+    .break-box {
+      display: flex;
+      gap: 24px;
+      align-items: flex-start;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+
+    textarea#music {
+      width: 100%;
+      min-height: 160px;
+      font-size: 16px;
+      padding: 12px;
+      border: 2px solid #ccc;
+      border-radius: 6px;
+      resize: vertical;
+    }
+
+    .countdown {
+      flex: 0 0 220px;
+      font-size: 18px;
+      border: 2px solid #ccc;
+      border-radius: 6px;
+      padding: 12px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #fff;
+    }
+
+    .jspsych-html-button-response-button {
+      margin: 0 !important;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="jspsych-target"></div>
+
+  <script>
+    console.log("initJsPsych type:", typeof initJsPsych);
+
+    /************* CONFIG *************/
+    const BREAK_SECONDS = 120;  // set to 10 for quick testing if you want
+    const ROUND2_CORRECT_RULE = 'same';
+    const PROLIFIC_COMPLETION_URL = 'https://www.prolific.co/';
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const prolificPID = urlParams.get('PROLIFIC_PID') || null;
+    const studyID = urlParams.get('STUDY_ID') || null;
+    const sessionID = urlParams.get('SESSION_ID') || null;
+
+    const jsPsych = initJsPsych({ display_element: 'jspsych-target' });
+
+    /************* ROUND 1 QUESTIONS *************/
+    const round1Questions = [
+      { pair: 1, prompt: "Question #1. Which of the following characters in an ancient script represents an animal?" },
+      { pair: 2, prompt: "Question #2. Which of the following characters in an ancient script represents a person?" },
+      { pair: 3, prompt: "Question #3. Which of the following characters in an ancient script represents a bird?" },
+      { pair: 4, prompt: "Question #4. Which of the following characters in an ancient script represents a rodent?" }
+    ];
+
+    const imagePairs = [
+      { A: "img/Pair 1 Image A.png", B: "img/Pair 1 Image B.png" },
+      { A: "img/Pair 2 Image A.png", B: "img/Pair 2 Image B.png" },
+      { A: "img/Pair 3 Image A.png", B: "img/Pair 3 Image B.png" },
+      { A: "img/Pair 4 Image A.png", B: "img/Pair 4 Image B.png" }
+    ];
+
+    const round1Choices = [null, null, null, null];
+
+    /************* PRELOAD *************/
+    const preload = {
+      type: jsPsychPreload,
+      images: imagePairs.flatMap(p => [p.A, p.B]),
+      show_progress_bar: true
+    };
+
+    /************* INTRO 1 *************/
+    const intro1 = {
+      type: jsPsychHtmlKeyboardResponse,
+      stimulus: `
+        <div class="centered">
+          <p>Welcome! Today you will answer some language questions about a researcher-manufactured ancient script.</p>
+          <p>Whether you get the answers right or wrong in Round 1, try to learn. Round 2 will test how much you learned.</p>
+          <p style="margin-top:24px; text-align:center;"><strong>Press the space bar to continue.</strong></p>
+        </div>
+      `,
+      choices: [' '],
+      data: { screen: 'intro1' }
+    };
+
+    /************* INTRO 2 — UPDATED TEXT WITH DOUBLE BREAKS *************/
+    const intro2 = {
+      type: jsPsychHtmlKeyboardResponse,
+      stimulus: `
+        <div class="centered">
+          <p>
+            People often assume they naturally learn from their mistakes, but research shows this process is more difficult and less automatic than it seems.
+          </p>
+          <p style="margin-top: 1.2em;">
+            When something goes wrong, people frequently feel confident that they will remember what happened and why — yet those details are easy to misinterpret or forget. As a result, individuals may repeat the same errors without realizing it.
+          </p>
+          <p style="margin-top: 1.2em;">
+            As you complete the next task, keep in mind that learning from failure requires deliberate attention and that your memory for what happens may not be as reliable as it feels.
+          </p>
+
+          <p style="margin-top:24px; text-align:center;"><strong>Press the space bar to begin Round 1.</strong></p>
+        </div>
+      `,
+      choices: [' '],
+      data: { screen: 'intro2' }
+    };
+
+    /************* IMAGE CHOICES *************/
+    function imgChoice(src, altText) {
+      return `<img class="choice-img" src="${src}" alt="${altText}">`;
+    }
+    const imageButtonHTML = '<button class="choice-btn" type="button">%choice%</button>';
+
+    function makeRound1Trial(i) {
+      const q = round1Questions[i];
+      const pair = imagePairs[i];
+
+      return {
+        type: jsPsychHtmlButtonResponse,
+        stimulus: `
+          <div class="centered">
+            <div class="question-title">${q.prompt}</div>
+            <div class="image-choice-container"></div>
+            <div class="mouse-note">Click one of the images to select your answer.</div>
+          </div>
+        `,
+        choices: [
+          imgChoice(pair.A, `Pair ${q.pair} Image A`),
+          imgChoice(pair.B, `Pair ${q.pair} Image B`)
+        ],
+        button_html: imageButtonHTML,
+        data: {
+          round: 1,
+          pair_number: q.pair,
+          question_text: q.prompt,
+          imageA: pair.A, imageB: pair.B,
+          prolificPID, studyID, sessionID
+        },
+        on_finish: function(data) {
+          const choiceLabel = (data.response === 0) ? 'A' : 'B';
+          data.choice_label = choiceLabel;
+          data.chosen_image = (data.response === 0) ? pair.A : pair.B;
+          round1Choices[i] = choiceLabel;
+        }
+      };
+    }
+
+    const incorrectFeedback = {
+      type: jsPsychHtmlKeyboardResponse,
+      stimulus: `
+        <div class="centered" style="text-align:center;">
+          <div class="incorrect-banner">YOU ANSWERED THIS QUESTION INCORRECT!</div>
+          <div class="press-space">Press space bar for the next question.</div>
+        </div>
+      `,
+      choices: [' '],
+      data: { screen: 'round1_feedback' }
+    };
+
+    /************* BREAK SCREEN — FIXED *************/
+    let breakIntervalId = null;
+
+    const breakScreen = {
+      type: jsPsychHtmlButtonResponse,
+      stimulus: `
+        <div class="centered">
+          <p>Thanks for answering those initial questions. Right now, take a short breather.</p>
+          <p><strong>Tell us: what is your favorite music to listen to?</strong></p>
+          <p>Please take two minutes and write your answer in the textbox below.</p>
+
+          <div class="break-box">
+            <div style="flex:1 1 520px;">
+              <label for="music" style="font-weight:600;">Your response:</label>
+              <textarea id="music" placeholder="Type your answer here..."></textarea>
+            </div>
+            <div class="countdown" id="countdown">Time remaining: 2:00</div>
+          </div>
+        </div>
+      `,
+      choices: ['Submit'],
+      button_html: '<button class="jspsych-btn" type="button" disabled>%choice%</button>',
+      data: { screen: 'break' },
+
+      on_load: function () {
+        const countdownEl = document.getElementById('countdown');
+        const btn = document.querySelector('.jspsych-html-button-response-button button');
+
+        let total = BREAK_SECONDS;
+        const formatTime = (s) => `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+        countdownEl.textContent = 'Time remaining: ' + formatTime(total);
+
+        breakIntervalId = setInterval(() => {
+          total -= 1;
+          countdownEl.textContent = 'Time remaining: ' + formatTime(Math.max(total, 0));
+          if (total <= 0) {
+            clearInterval(breakIntervalId);
+            breakIntervalId = null;
+            btn.disabled = false;
+          }
+        }, 1000);
+      },
+
+      on_finish: function (data) {
+        if (breakIntervalId) {
+          clearInterval(breakIntervalId);
+          breakIntervalId = null;
+        }
+        const txtEl = document.getElementById('music');
+        data.favorite_music = txtEl ? txtEl.value : '';
+        data.required_wait_seconds = BREAK_SECONDS;
+      }
+    };
+
+    /************* ROUND 2 *************/
+    const round2Intro = {
+      type: jsPsychHtmlKeyboardResponse,
+      stimulus: `
+        <div class="centered">
+          <p><strong>This is Round 2.</strong></p>
+          <p>Based on what you learned about the researcher-manufactured ancient script in Round 1, answer the next four questions by selecting the appropriate image.</p>
+          <p style="margin-top:24px; text-align:center;"><strong>Press space bar to begin answering the questions.</strong></p>
+        </div>
+      `,
+      choices: [' '],
+      data: { screen: 'round2_intro' }
+    };
+
+    function makeRound2Trial(i) {
+      const pair = imagePairs[i];
+      const prompt = `Question #${i+1}. Which of the following characters represents a non-living stationary, object?`;
+
+      return {
+        type: jsPsychHtmlButtonResponse,
+        stimulus: `
+          <div class="centered">
+            <div class="question-title">${prompt}</div>
+            <div class="image-choice-container"></div>
+            <div class="mouse-note">Click one of the images to select your answer.</div>
+          </div>
+        `,
+        choices: [
+          imgChoice(pair.A, `Pair ${i+1} Image A`),
+          imgChoice(pair.B, `Pair ${i+1} Image B`)
+        ],
+        button_html: imageButtonHTML,
+        data: {
+          round: 2,
+          pair_number: i+1,
+          question_text: prompt,
+          imageA: pair.A,
+          imageB: pair.B,
+          prolificPID, studyID, sessionID
+        },
+        on_finish: function(data) {
+          const choiceLabel = (data.response === 0) ? 'A' : 'B';
+          const r1Choice = round1Choices[i];
+
+          const correct = (ROUND2_CORRECT_RULE === 'same')
+            ? (choiceLabel === r1Choice)
+            : (choiceLabel !== r1Choice);
+
+          data.choice_label = choiceLabel;
+          data.chosen_image = (data.response === 0) ? pair.A : pair.B;
+          data.round1_choice_for_pair = r1Choice;
+          data.correct = correct ? 1 : 0;
+        }
+      };
+    }
+
+    /************* END *************/
+    const finalScreen = {
+      type: jsPsychHtmlButtonResponse,
+      stimulus: `
+        <div class="centered" style="text-align:center;">
+          <p><strong>Thank you for your participation!</strong></p>
+          <p>We will now take you back to the Prolific page.</p>
+        </div>
+      `,
+      choices: ['Return to Prolific'],
+      data: { screen: 'final' },
+      on_finish: function() {
+        window.location.href = PROLIFIC_COMPLETION_URL;
+      }
+    };
+
+    /************* TIMELINE *************/
+    const timeline = [preload, intro1, intro2];
+
+    for (let i = 0; i < 4; i++) {
+      timeline.push(makeRound1Trial(i));
+      timeline.push(incorrectFeedback);
+    }
+
+    timeline.push(breakScreen, round2Intro);
+
+    for (let i = 0; i < 4; i++) {
+      timeline.push(makeRound2Trial(i));
+    }
+
+    timeline.push(finalScreen);
+
+    jsPsych.run(timeline);
+  </script>
+</body>
+</html>

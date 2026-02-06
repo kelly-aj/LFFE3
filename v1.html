@@ -3,11 +3,11 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>LFF Task (Local jsPsych)</title>
+  <title>LFF Task - Version 1</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <!-- ✅ Local jsPsych CSS -->
-  <link rel="stylesheet" href="jspsych/jspsych.css">
+  <link rel="stylesheet" href="jspsych/jspsych.css" />
 
   <!-- ✅ Local jsPsych core + plugins -->
   <script src="jspsych/jspsych.js"></script>
@@ -37,7 +37,7 @@
       align-items: flex-start;
       gap: 40px;
       margin-top: 18px;
-      flex-wrap: wrap;
+      flex-wrap: wrap; /* will stack if window is narrow */
     }
 
     button.choice-btn {
@@ -84,6 +84,7 @@
       margin-top: 10px;
     }
 
+    /* Break screen */
     .break-box {
       display: flex;
       gap: 24px;
@@ -126,21 +127,89 @@
   <div id="jspsych-target"></div>
 
   <script>
-    console.log("initJsPsych type:", typeof initJsPsych);
+    /**************************************************************
+     * VERSION 1 CONFIG
+     **************************************************************/
+    const VERSION = "v1";
 
-    /************* CONFIG *************/
-    const BREAK_SECONDS = 120;  // set to 10 for quick testing if you want
-    const ROUND2_CORRECT_RULE = 'same';
-    const PROLIFIC_COMPLETION_URL = 'https://www.prolific.co/';
+    // Round 2 scoring rule for v1:
+    // SAME as Round 1 choice is correct
+    const ROUND2_CORRECT_RULE = "same";
 
-    const urlParams = new URLSearchParams(window.location.search);
-    const prolificPID = urlParams.get('PROLIFIC_PID') || null;
-    const studyID = urlParams.get('STUDY_ID') || null;
-    const sessionID = urlParams.get('SESSION_ID') || null;
+    // Break duration
+    const BREAK_SECONDS = 120; // set to 10 temporarily for quick testing if desired
 
-    const jsPsych = initJsPsych({ display_element: 'jspsych-target' });
+    // ✅ Qualtrics Receiver Survey URL you provided
+    const QUALTRICS_RETURN_URL = "https://merceruniversity.co1.qualtrics.com/jfe/form/SV_eEG4o0S1x2n2DFI";
 
-    /************* ROUND 1 QUESTIONS *************/
+    /**************************************************************
+     * INIT
+     **************************************************************/
+    const jsPsych = initJsPsych({
+      display_element: 'jspsych-target'
+    });
+
+    // Add version to every row of jsPsych data
+    jsPsych.data.addProperties({ version: VERSION });
+
+    /**************************************************************
+     * HELPERS: build summary + redirect to Qualtrics receiver
+     **************************************************************/
+    function buildSummaryPayload() {
+      const all = jsPsych.data.get();
+
+      const r1 = all.filter({ round: 1 });
+      const r2 = all.filter({ round: 2 });
+
+      const r1_choices = r1.select('choice_label').values.join(',');
+      const r2_choices = r2.select('choice_label').values.join(',');
+
+      const r2_correct_arr = r2.select('correct').values.map(x => Number(x || 0));
+      const r2_correct = r2_correct_arr.join(',');
+      const r2_total = r2_correct_arr.reduce((a, b) => a + b, 0);
+
+      const rt_r1 = r1.select('rt').values.join(',');
+      const rt_r2 = r2.select('rt').values.join(',');
+
+      // Music response saved on the break screen (truncated)
+      const breakRows = all.filter({ screen: 'break' }).values();
+      const music = (breakRows.length && breakRows[0].favorite_music) ? breakRows[0].favorite_music : "";
+      const music_short = music.length > 150 ? music.slice(0, 150) : music;
+
+      return {
+        r1_choices,
+        r2_choices,
+        r2_correct,
+        r2_total: String(r2_total),
+        rt_r1,
+        rt_r2,
+        music_short
+      };
+    }
+
+    function sendDataToQualtrics() {
+      const payload = buildSummaryPayload();
+
+      // Pull Prolific IDs from URL if present
+      const params = new URLSearchParams(window.location.search);
+      const PROLIFIC_PID = params.get('PROLIFIC_PID') || '';
+      const STUDY_ID = params.get('STUDY_ID') || '';
+      const SESSION_ID = params.get('SESSION_ID') || '';
+
+      const q = new URLSearchParams({
+        PROLIFIC_PID,
+        STUDY_ID,
+        SESSION_ID,
+        version: VERSION,
+        ...payload
+      });
+
+      window.location.href = `${QUALTRICS_RETURN_URL}?${q.toString()}`;
+    }
+
+    /**************************************************************
+     * STIMULI
+     **************************************************************/
     const round1Questions = [
       { pair: 1, prompt: "Question #1. Which of the following characters in an ancient script represents an animal?" },
       { pair: 2, prompt: "Question #2. Which of the following characters in an ancient script represents a person?" },
@@ -155,16 +224,18 @@
       { A: "img/Pair 4 Image A.png", B: "img/Pair 4 Image B.png" }
     ];
 
+    // Save Round 1 choices for scoring in Round 2
     const round1Choices = [null, null, null, null];
 
-    /************* PRELOAD *************/
     const preload = {
       type: jsPsychPreload,
       images: imagePairs.flatMap(p => [p.A, p.B]),
       show_progress_bar: true
     };
 
-    /************* INTRO 1 *************/
+    /**************************************************************
+     * INTRO SCREENS
+     **************************************************************/
     const intro1 = {
       type: jsPsychHtmlKeyboardResponse,
       stimulus: `
@@ -178,7 +249,6 @@
       data: { screen: 'intro1' }
     };
 
-    /************* INTRO 2 — UPDATED TEXT WITH DOUBLE BREAKS *************/
     const intro2 = {
       type: jsPsychHtmlKeyboardResponse,
       stimulus: `
@@ -200,12 +270,17 @@
       data: { screen: 'intro2' }
     };
 
-    /************* IMAGE CHOICES *************/
+    /**************************************************************
+     * IMAGE CHOICE HELPERS
+     **************************************************************/
     function imgChoice(src, altText) {
       return `<img class="choice-img" src="${src}" alt="${altText}">`;
     }
     const imageButtonHTML = '<button class="choice-btn" type="button">%choice%</button>';
 
+    /**************************************************************
+     * ROUND 1 TRIALS (mouse click)
+     **************************************************************/
     function makeRound1Trial(i) {
       const q = round1Questions[i];
       const pair = imagePairs[i];
@@ -228,8 +303,8 @@
           round: 1,
           pair_number: q.pair,
           question_text: q.prompt,
-          imageA: pair.A, imageB: pair.B,
-          prolificPID, studyID, sessionID
+          imageA: pair.A,
+          imageB: pair.B
         },
         on_finish: function(data) {
           const choiceLabel = (data.response === 0) ? 'A' : 'B';
@@ -240,6 +315,7 @@
       };
     }
 
+    // Version 1 feedback: always "INCORRECT!"
     const incorrectFeedback = {
       type: jsPsychHtmlKeyboardResponse,
       stimulus: `
@@ -249,10 +325,12 @@
         </div>
       `,
       choices: [' '],
-      data: { screen: 'round1_feedback' }
+      data: { screen: 'round1_feedback', feedback: 'incorrect' }
     };
 
-    /************* BREAK SCREEN — FIXED *************/
+    /**************************************************************
+     * BREAK SCREEN (2-minute timer)
+     **************************************************************/
     let breakIntervalId = null;
 
     const breakScreen = {
@@ -306,7 +384,9 @@
       }
     };
 
-    /************* ROUND 2 *************/
+    /**************************************************************
+     * ROUND 2 INTRO + TRIALS (mouse click + scoring)
+     **************************************************************/
     const round2Intro = {
       type: jsPsychHtmlKeyboardResponse,
       stimulus: `
@@ -343,8 +423,7 @@
           pair_number: i+1,
           question_text: prompt,
           imageA: pair.A,
-          imageB: pair.B,
-          prolificPID, studyID, sessionID
+          imageB: pair.B
         },
         on_finish: function(data) {
           const choiceLabel = (data.response === 0) ? 'A' : 'B';
@@ -357,12 +436,8 @@
           data.choice_label = choiceLabel;
           data.chosen_image = (data.response === 0) ? pair.A : pair.B;
           data.round1_choice_for_pair = r1Choice;
-          data.correct = correct ? 1 : 0;
-        }
-      };
-    }
-
-    /************* END *************/
+          data.correct =ATA TO QUALTRICS RECEIVER
+     **************************************************************/
     const finalScreen = {
       type: jsPsychHtmlButtonResponse,
       stimulus: `
@@ -371,62 +446,37 @@
           <p>We will now take you back to the Prolific page.</p>
         </div>
       `,
-      choices: ['Return to Prolific'],
+      choices: ['Continue'],
       data: { screen: 'final' },
       on_finish: function() {
-        window.location.href = PROLIFIC_COMPLETION_URL;
+        sendDataToQualtrics();
       }
     };
 
-    function buildSummaryPayload(jsPsych) {
-  const all = jsPsych.data.get();
+    /**************************************************************
+     * BUILD TIMELINE
+     **************************************************************/
+    const timeline = [];
+    timeline.push(preload, intro1, intro2);
 
-  const r1 = all.filter({ round: 1 });
-  const r2 = all.filter({ round: 2 });
-
-  const r1Choices = r1.select('choice_label').values.join(',');
-  const r2Choices = r2.select('choice_label').values.join(',');
-
-  const r2CorrectArr = r2.select('correct').values.map(x => Number(x || 0));
-  const r2Correct = r2CorrectArr.join(',');
-  const r2Total = r2CorrectArr.reduce((a,b) => a + b, 0);
-
-  const r1RT = r1.select('rt').values.join(',');
-  const r2RT = r2.select('rt').values.join(',');
-
-  // music response (from break screen)
-  const breakData = all.filter({ screen: 'break' }).values();
-  let music = breakData.length && breakData[0].favorite_music ? breakData[0].favorite_music : '';
-  let music_short = music.length > 150 ? music.slice(0,150) : music;
-
-  return {
-    r1_choices: r1Choices,
-    r2_choices: r2Choices,
-    r2_correct: r2Correct,
-    r2_total: String(r2Total),
-    rt_r1: r1RT,
-    rt_r2: r2RT,
-    music_short: music_short
-  };
-}
-    /************* TIMELINE *************/
-    const timeline = [preload, intro1, intro2];
-
+    // Round 1: Q -> incorrect -> Q -> incorrect ...
     for (let i = 0; i < 4; i++) {
       timeline.push(makeRound1Trial(i));
       timeline.push(incorrectFeedback);
     }
 
+    // Break + Round 2
     timeline.push(breakScreen, round2Intro);
 
     for (let i = 0; i < 4; i++) {
       timeline.push(makeRound2Trial(i));
     }
 
+    // Final -> send data to Qualtrics receiver
     timeline.push(finalScreen);
 
     jsPsych.run(timeline);
   </script>
 </body>
-
 </html>
+

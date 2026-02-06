@@ -378,6 +378,37 @@
       }
     };
 
+    function buildSummaryPayload(jsPsych) {
+  const all = jsPsych.data.get();
+
+  const r1 = all.filter({ round: 1 });
+  const r2 = all.filter({ round: 2 });
+
+  const r1Choices = r1.select('choice_label').values.join(',');
+  const r2Choices = r2.select('choice_label').values.join(',');
+
+  const r2CorrectArr = r2.select('correct').values.map(x => Number(x || 0));
+  const r2Correct = r2CorrectArr.join(',');
+  const r2Total = r2CorrectArr.reduce((a,b) => a + b, 0);
+
+  const r1RT = r1.select('rt').values.join(',');
+  const r2RT = r2.select('rt').values.join(',');
+
+  // music response (from break screen)
+  const breakData = all.filter({ screen: 'break' }).values();
+  let music = breakData.length && breakData[0].favorite_music ? breakData[0].favorite_music : '';
+  let music_short = music.length > 150 ? music.slice(0,150) : music;
+
+  return {
+    r1_choices: r1Choices,
+    r2_choices: r2Choices,
+    r2_correct: r2Correct,
+    r2_total: String(r2Total),
+    rt_r1: r1RT,
+    rt_r2: r2RT,
+    music_short: music_short
+  };
+}
     /************* TIMELINE *************/
     const timeline = [preload, intro1, intro2];
 
@@ -397,4 +428,5 @@
     jsPsych.run(timeline);
   </script>
 </body>
+
 </html>

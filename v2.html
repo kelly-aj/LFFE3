@@ -436,7 +436,7 @@
           data.choice_label = choiceLabel;
           data.chosen_image = (data.response === 0) ? pair.A : pair.B;
           data.round1_choice_for_pair = r1Choice;
-          data.correct =ATA TO QUALTRICS RECEIVER
+          data.correct = correct ? 1 : 0;
      **************************************************************/
     const finalScreen = {
       type: jsPsychHtmlButtonResponse,
@@ -479,4 +479,5 @@
   </script>
 </body>
 </html>
+
 

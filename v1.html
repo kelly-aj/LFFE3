@@ -14,8 +14,30 @@
 
   <style>
     body { background: #fafafa; font-family: Arial, sans-serif; color: #111; }
-    .centered { max-width: 900px; margin: 0 auto; padding: 24px; line-height: 1.45; }
-    .question-title { font-size: 22px; font-weight: 600; margin-bottom: 16px; }
+
+    .centered {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 24px;
+      line-height: 1.45;
+    }
+
+    .question-title {
+      font-size: 22px;
+      font-weight: 600;
+      margin-bottom: 16px;
+    }
+
+    .vertical-btn {
+      display: block;
+      width: 700px;
+      max-width: 90%;
+      text-align: left;
+      margin: 10px auto;
+      padding: 12px;
+      white-space: normal;
+      line-height: 1.4;
+    }
   </style>
 </head>
 
@@ -24,10 +46,10 @@
 
 <script>
 
+/**************************************************************
+ * CONFIG
+ **************************************************************/
 const VERSION = "v1";
-const ROUND2_CORRECT_RULE = "same";
-const BREAK_SECONDS = 120;
-const QUALTRICS_RETURN_URL = "https://merceruniversity.co1.qualtrics.com/jfe/form/SV_eEG4o0S1x2n2DFI";
 
 const jsPsych = initJsPsych({
   display_element: 'jspsych-target'
@@ -36,13 +58,13 @@ const jsPsych = initJsPsych({
 jsPsych.data.addProperties({ version: VERSION });
 
 /**************************************************************
- * INTRO SCREENS
+ * INTRO
  **************************************************************/
 const intro1 = {
   type: jsPsychHtmlKeyboardResponse,
   stimulus: `
     <div class="centered">
-      <p>Welcome! Today you will answer some language questions.</p>
+      <p>Welcome! Today you will answer some language questions about a researcher-manufactured ancient script.</p>
       <p style="text-align:center;"><strong>Press space to continue.</strong></p>
     </div>
   `,
@@ -50,6 +72,9 @@ const intro1 = {
   data: { screen: 'intro1' }
 };
 
+/**************************************************************
+ * WARNING SCREEN (tracks reading time)
+ **************************************************************/
 const intro2 = {
   type: jsPsychHtmlKeyboardResponse,
   stimulus: `
@@ -61,21 +86,29 @@ const intro2 = {
         When something goes wrong, people frequently feel confident that they will remember what happened and why — yet those details are easy to misinterpret or forget.
       </p>
       <p>
-        Learning from failure requires deliberate attention and memory may not be reliable.
+        As you complete the next task, keep in mind that learning from failure requires deliberate attention and that your memory for what happens may not be as reliable as it feels.
       </p>
 
-      <p style="text-align:center;"><strong>Press space to continue.</strong></p>
+      <p style="margin-top:24px; text-align:center;">
+        <strong>Press the space bar to continue.</strong>
+      </p>
     </div>
   `,
   choices: [' '],
-  data: { screen: 'intro2' }
+  data: { screen: 'intro2' },
+
+  // ✅ explicitly store reading time
+  on_finish: function(data){
+    data.reading_time = data.rt;
+  }
 };
 
 /**************************************************************
- * *** ADDED: COMPREHENSION CHECK ***
+ * COMPREHENSION CHECK (FULLY FIXED)
  **************************************************************/
 const comprehensionCheck = {
   type: jsPsychHtmlButtonResponse,
+
   stimulus: `
     <div class="centered">
       <div class="question-title">
@@ -83,9 +116,9 @@ const comprehensionCheck = {
       </div>
     </div>
   `,
-  choices: function() {
 
-    // *** ADDED: define + shuffle ***
+  on_start: function(trial) {
+
     const options = [
       { text: "People usually remember failures accurately without much effort.", value: "A" },
       { text: "Learning from mistakes requires deliberate attention because memory of what happened can be unreliable.", value: "B" },
@@ -93,34 +126,41 @@ const comprehensionCheck = {
       { text: "People naturally avoid repeating errors even if they don’t reflect on them.", value: "D" }
     ];
 
-    return jsPsych.randomization.shuffle(options).map(o => {
-      return `<div style="text-align:left; max-width:700px; margin:8px auto;">${o.text}</div>`;
-    });
+    // ✅ shuffle ONCE and store
+    trial.shuffled_options = jsPsych.randomization.shuffle(options);
+
+    // ✅ assign visible choices
+    trial.choices = trial.shuffled_options.map(o => o.text);
   },
-  button_html: '<button class="jspsych-btn">%choice%</button>',
+
+  // ✅ vertical clean layout
+  button_html: '<button class="jspsych-btn vertical-btn">%choice%</button>',
 
   data: { screen: 'comprehension_check' },
 
   on_finish: function(data) {
-
-    // *** ADDED: recover shuffled mapping ***
-    const options = [
-      { text: "People usually remember failures accurately without much effort.", value: "A" },
-      { text: "Learning from mistakes requires deliberate attention because memory of what happened can be unreliable.", value: "B" },
-      { text: "Most mistakes are caused by external factors rather than personal actions.", value: "C" },
-      { text: "People naturally avoid repeating errors even if they don’t reflect on them.", value: "D" }
-    ];
-
-    const shuffled = jsPsych.randomization.shuffle(options);
-
-    const selected = shuffled[data.response];
+    const selected = this.shuffled_options[data.response];
 
     data.selected_option = selected.value;
     data.selected_text = selected.text;
 
-    // *** ADDED: scoring ***
+    // ✅ scoring
     data.correct = (selected.value === "B") ? 1 : 0;
   }
+};
+
+/**************************************************************
+ * FINAL SCREEN
+ **************************************************************/
+const finalScreen = {
+  type: jsPsychHtmlButtonResponse,
+  stimulus: `
+    <div class="centered" style="text-align:center;">
+      <p><strong>Thank you for your participation!</strong></p>
+    </div>
+  `,
+  choices: ['Finish'],
+  data: { screen: 'final' }
 };
 
 /**************************************************************
@@ -128,13 +168,11 @@ const comprehensionCheck = {
  **************************************************************/
 const timeline = [];
 
-/**************************************************************
- * *** MODIFIED: ORDER ***
- **************************************************************/
 timeline.push(
   intro1,
   intro2,
-  comprehensionCheck // *** ADDED HERE ***
+  comprehensionCheck,
+  finalScreen
 );
 
 /**************************************************************

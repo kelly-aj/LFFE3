@@ -41,6 +41,7 @@
       padding:12px;
     }
 
+    /* Keeping your original class name to avoid any other changes */
     .incorrect-banner {
       font-size:30px;
       font-weight:700;
@@ -92,7 +93,8 @@
 
 /**************** CONFIG ****************/
 const VERSION = "v1";
-const ROUND2_CORRECT_RULE = "same";
+/* CHANGED: set to 'different' per your Version 2 scoring requirement */
+const ROUND2_CORRECT_RULE = "different";
 const BREAK_SECONDS = 120;
 
 /* ✅ Your Qualtrics return link (which then sends to Prolific) */
@@ -194,11 +196,12 @@ function makeRound1Trial(i){
   };
 }
 
+/* CHANGED: Feedback message text only (keeping your original class & timing/flow) */
 const incorrectFeedback = {
   type: jsPsychHtmlKeyboardResponse,
   stimulus: `
   <div class="centered">
-    <div class="incorrect-banner">YOU ANSWERED THIS QUESTION INCORRECT!</div>
+    <div class="incorrect-banner">YOU ANSWERED THIS QUESTION CORRECT!</div>
     <div class="press-space">Press space to continue.</div>
   </div>`,
   choices:[' ']
@@ -274,9 +277,20 @@ function makeRound2Trial(i){
     type: jsPsychHtmlButtonResponse,
     stimulus: `<div class="centered"><div class="question-title">${round2Questions[i]}</div></div>`,
     choices: [imgChoice(pair.A,"A"), imgChoice(pair.B,"B")],
-    on_finish: function(d){
-      const c = (d.response===0) ? "A" : "B";
-      d.correct = (c === round1Choices[i]) ? 1 : 0;
+    on_finish: function(data){
+      const choiceLabel = (data.response === 0) ? "A" : "B";
+      const r1Choice = round1Choices[i];
+
+      // ✅ Version 2 scoring: correct is NOT what they chose in Round 1 when rule === 'different'
+      const correct = (ROUND2_CORRECT_RULE === 'different')
+        ? (choiceLabel !== r1Choice)
+        : (choiceLabel === r1Choice);
+
+      // extra fields per your snippet
+      data.choice_label = choiceLabel;
+      data.chosen_image = (data.response === 0) ? pair.A : pair.B;
+      data.round1_choice_for_pair = r1Choice;
+      data.correct = correct ? 1 : 0;
     }
   };
 }
@@ -303,7 +317,7 @@ timeline.push(intro1, intro2, comprehensionCheck);
 
 for(let i=0;i<4;i++){
   timeline.push(makeRound1Trial(i));
-  timeline.push(incorrectFeedback);
+  timeline.push(incorrectFeedback); // now shows: YOU ANSWERED THIS QUESTION CORRECT!
 }
 
 timeline.push(breakScreen, round2Intro);
@@ -319,3 +333,4 @@ jsPsych.run(timeline);
 </script>
 </body>
 </html>
+``

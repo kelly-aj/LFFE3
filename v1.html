@@ -95,6 +95,9 @@ const VERSION = "v1";
 const ROUND2_CORRECT_RULE = "same";
 const BREAK_SECONDS = 120;
 
+/* ✅ Your Qualtrics return link (which then sends to Prolific) */
+const QUALTRICS_RETURN_URL = "https://merceruniversity.co1.qualtrics.com/jfe/form/SV_eEG4o0S1x2n2DFI";
+
 /**************** INIT ****************/
 const jsPsych = initJsPsych({ display_element: 'jspsych-target' });
 jsPsych.data.addProperties({ version: VERSION });
@@ -201,7 +204,7 @@ const incorrectFeedback = {
   choices:[' ']
 };
 
-/**************** BREAK (FIXED) ****************/
+/**************** BREAK ****************/
 let breakIntervalId=null;
 
 const breakScreen = {
@@ -278,6 +281,21 @@ function makeRound2Trial(i){
   };
 }
 
+/**************** FINAL SCREEN + REDIRECT ****************/
+const finalScreen = {
+  type: jsPsychHtmlButtonResponse,
+  stimulus: `
+  <div class="centered" style="text-align:center;">
+    <p><strong>Thank you for your participation!</strong></p>
+    <p>Click continue to return to Prolific.</p>
+  </div>
+  `,
+  choices: ['Continue'],
+  on_finish: function(){
+    window.location.href = QUALTRICS_RETURN_URL;
+  }
+};
+
 /**************** TIMELINE ****************/
 const timeline = [];
 
@@ -293,6 +311,8 @@ timeline.push(breakScreen, round2Intro);
 for(let i=0;i<4;i++){
   timeline.push(makeRound2Trial(i));
 }
+
+timeline.push(finalScreen);
 
 jsPsych.run(timeline);
 

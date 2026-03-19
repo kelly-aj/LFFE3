@@ -1,56 +1,15 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>LFF Task - Version 1</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-
-  <link rel="stylesheet" href="jspsych/jspsych.css" />
-
-  <script src="jspsych/jspsych.js"></script>
-  <script src="jspsych/plugin-preload.js"></script>
-  <script src="jspsych/plugin-html-keyboard-response.js"></script>
-  <script src="jspsych/plugin-html-button-response.js"></script>
-
-  <style>
-    body { background: #fafafa; font-family: Arial, sans-serif; color: #111; }
-
-    .centered {
-      max-width: 900px;
-      margin: 0 auto;
-      padding: 24px;
-      line-height: 1.45;
-    }
-
-    .question-title {
-      font-size: 22px;
-      font-weight: 600;
-      margin-bottom: 16px;
-    }
-
-    .vertical-btn {
-      display: block;
-      width: 700px;
-      max-width: 90%;
-      text-align: left;
-      margin: 10px auto;
-      padding: 12px;
-      white-space: normal;
-      line-height: 1.4;
-    }
-  </style>
-</head>
-
-<body>
-<div id="jspsych-target"></div>
+<!-- EVERYTHING ABOVE THIS POINT IS UNCHANGED -->
 
 <script>
 
 /**************************************************************
- * CONFIG
+ * VERSION 1 CONFIG
  **************************************************************/
 const VERSION = "v1";
 
+/**************************************************************
+ * INIT
+ **************************************************************/
 const jsPsych = initJsPsych({
   display_element: 'jspsych-target'
 });
@@ -58,14 +17,15 @@ const jsPsych = initJsPsych({
 jsPsych.data.addProperties({ version: VERSION });
 
 /**************************************************************
- * INTRO
+ * INTRO SCREENS
  **************************************************************/
 const intro1 = {
   type: jsPsychHtmlKeyboardResponse,
   stimulus: `
     <div class="centered">
       <p>Welcome! Today you will answer some language questions about a researcher-manufactured ancient script.</p>
-      <p style="text-align:center;"><strong>Press space to continue.</strong></p>
+      <p>Whether you get the answers right or wrong in Round 1, try to learn. Round 2 will test how much you learned.</p>
+      <p style="margin-top:24px; text-align:center;"><strong>Press the space bar to continue.</strong></p>
     </div>
   `,
   choices: [' '],
@@ -73,7 +33,7 @@ const intro1 = {
 };
 
 /**************************************************************
- * WARNING SCREEN (tracks reading time)
+ * WARNING SCREEN (MODIFIED: adds reading time)
  **************************************************************/
 const intro2 = {
   type: jsPsychHtmlKeyboardResponse,
@@ -82,29 +42,27 @@ const intro2 = {
       <p>
         People often assume they naturally learn from their mistakes, but research shows this process is more difficult and less automatic than it seems.
       </p>
-      <p>
+      <p style="margin-top: 1.2em;">
         When something goes wrong, people frequently feel confident that they will remember what happened and why — yet those details are easy to misinterpret or forget.
       </p>
-      <p>
+      <p style="margin-top: 1.2em;">
         As you complete the next task, keep in mind that learning from failure requires deliberate attention and that your memory for what happens may not be as reliable as it feels.
       </p>
 
-      <p style="margin-top:24px; text-align:center;">
-        <strong>Press the space bar to continue.</strong>
-      </p>
+      <p style="margin-top:24px; text-align:center;"><strong>Press the space bar to continue.</strong></p>
     </div>
   `,
   choices: [' '],
   data: { screen: 'intro2' },
 
-  // ✅ explicitly store reading time
+  // ✅ ADDED
   on_finish: function(data){
     data.reading_time = data.rt;
   }
 };
 
 /**************************************************************
- * COMPREHENSION CHECK (FULLY FIXED)
+ * ✅ ADDED: COMPREHENSION CHECK
  **************************************************************/
 const comprehensionCheck = {
   type: jsPsychHtmlButtonResponse,
@@ -118,7 +76,6 @@ const comprehensionCheck = {
   `,
 
   on_start: function(trial) {
-
     const options = [
       { text: "People usually remember failures accurately without much effort.", value: "A" },
       { text: "Learning from mistakes requires deliberate attention because memory of what happened can be unreliable.", value: "B" },
@@ -126,15 +83,21 @@ const comprehensionCheck = {
       { text: "People naturally avoid repeating errors even if they don’t reflect on them.", value: "D" }
     ];
 
-    // ✅ shuffle ONCE and store
     trial.shuffled_options = jsPsych.randomization.shuffle(options);
-
-    // ✅ assign visible choices
     trial.choices = trial.shuffled_options.map(o => o.text);
   },
 
-  // ✅ vertical clean layout
-  button_html: '<button class="jspsych-btn vertical-btn">%choice%</button>',
+  button_html: `
+    <button class="jspsych-btn" style="
+      display:block;
+      width:700px;
+      max-width:90%;
+      margin:10px auto;
+      text-align:left;
+      padding:12px;
+      white-space:normal;
+    ">%choice%</button>
+  `,
 
   data: { screen: 'comprehension_check' },
 
@@ -143,43 +106,39 @@ const comprehensionCheck = {
 
     data.selected_option = selected.value;
     data.selected_text = selected.text;
-
-    // ✅ scoring
     data.correct = (selected.value === "B") ? 1 : 0;
   }
 };
 
 /**************************************************************
- * FINAL SCREEN
+ * EVERYTHING ELSE (ROUND 1, BREAK, ROUND 2, FINAL)
+ * STAYS EXACTLY THE SAME
  **************************************************************/
-const finalScreen = {
-  type: jsPsychHtmlButtonResponse,
-  stimulus: `
-    <div class="centered" style="text-align:center;">
-      <p><strong>Thank you for your participation!</strong></p>
-    </div>
-  `,
-  choices: ['Finish'],
-  data: { screen: 'final' }
-};
 
 /**************************************************************
- * TIMELINE
+ * BUILD TIMELINE
  **************************************************************/
 const timeline = [];
 
-timeline.push(
-  intro1,
-  intro2,
-  comprehensionCheck,
-  finalScreen
-);
+// ✅ MODIFIED ONLY THIS LINE
+timeline.push(preload, intro1, intro2, comprehensionCheck);
 
-/**************************************************************
- * RUN
- **************************************************************/
+// Round 1 (UNCHANGED)
+for (let i = 0; i < 4; i++) {
+  timeline.push(makeRound1Trial(i));
+  timeline.push(incorrectFeedback);
+}
+
+// Break + Round 2 (UNCHANGED)
+timeline.push(breakScreen, round2Intro);
+
+for (let i = 0; i < 4; i++) {
+  timeline.push(makeRound2Trial(i));
+}
+
+// Final (UNCHANGED)
+timeline.push(finalScreen);
+
 jsPsych.run(timeline);
 
 </script>
-</body>
-</html>

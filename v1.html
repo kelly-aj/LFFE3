@@ -232,7 +232,7 @@ stimulus:`
 choices:[' ']
 };
 
-/**************** BREAK (UNCHANGED) ****************/
+/**************** BREAK (FIXED) ****************/
 let breakIntervalId=null;
 
 const breakScreen={
@@ -252,16 +252,24 @@ stimulus:`
 </div>
 `,
 choices:['Submit'],
-button_html:'<button disabled>%choice%</button>',
+button_html:'<button class="jspsych-btn" type="button" disabled>%choice%</button>',
 
 on_load:function(){
-let total=BREAK_SECONDS;
+const btn=document.querySelector('.jspsych-html-button-response-button button');
 const el=document.getElementById('countdown');
-const btn=document.querySelector('button');
+
+let total=BREAK_SECONDS;
+
+function formatTime(s){
+return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+}
+
+el.textContent=formatTime(total);
 
 breakIntervalId=setInterval(()=>{
 total--;
-el.textContent=total;
+el.textContent=formatTime(Math.max(total,0));
+
 if(total<=0){
 clearInterval(breakIntervalId);
 btn.disabled=false;
@@ -270,8 +278,11 @@ btn.disabled=false;
 },
 
 on_finish:function(data){
+if(breakIntervalId){
+clearInterval(breakIntervalId);
+}
 const txt=document.getElementById('music');
-data.favorite_music=txt.value;
+data.favorite_music=txt ? txt.value : '';
 }
 };
 
@@ -281,11 +292,12 @@ const pair=imagePairs[i];
 
 return{
 type:jsPsychHtmlButtonResponse,
-stimulus:`<div class="centered">Round 2 Question ${i+1}</div>`,
+stimulus:`<div class="centered"><div class="question-title">Round 2 Question ${i+1}</div></div>`,
 choices:[
 imgChoice(pair.A,"A"),
 imgChoice(pair.B,"B")
 ],
+button_html:imageButtonHTML,
 on_finish:function(data){
 const c=(data.response===0)?"A":"B";
 data.correct=(c===round1Choices[i])?1:0;

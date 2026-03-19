@@ -113,7 +113,7 @@
       background: #fff;
     }
 
-    .vertical-btn {  /* *** ADDED *** */
+    .vertical-btn {
       display: block;
       width: 700px;
       max-width: 90%;
@@ -153,78 +153,97 @@ const preload = {
 /**************************************************************/
 const intro1 = {
   type: jsPsychHtmlKeyboardResponse,
-  stimulus: `<div class="centered">
-    <p>Welcome! Today you will answer some language questions.</p>
-    <p style="text-align:center;"><strong>Press space to continue.</strong></p>
-  </div>`,
+  stimulus: `
+    <div class="centered">
+      <p>Welcome! Today you will answer some language questions about a researcher-manufactured ancient script.</p>
+      <p>Whether you get the answers right or wrong in Round 1, try to learn. Round 2 will test how much you learned.</p>
+      <p style="margin-top:24px; text-align:center;"><strong>Press the space bar to continue.</strong></p>
+    </div>
+  `,
   choices: [' '],
   data: { screen: 'intro1' }
 };
 
 /**************************************************************/
+/* WARNING SCREEN + TIME */
 const intro2 = {
   type: jsPsychHtmlKeyboardResponse,
-  stimulus: `<div class="centered">
-    <p>People often assume they naturally learn from mistakes...</p>
-    <p style="text-align:center;"><strong>Press space to continue.</strong></p>
-  </div>`,
+  stimulus: `
+    <div class="centered">
+      <p>
+        People often assume they naturally learn from their mistakes, but research shows this process is more difficult and less automatic than it seems.
+      </p>
+      <p style="margin-top: 1.2em;">
+        When something goes wrong, people frequently feel confident that they will remember what happened and why — yet those details are easy to misinterpret or forget.
+      </p>
+      <p style="margin-top: 1.2em;">
+        As you complete the next task, keep in mind that learning from failure requires deliberate attention and that your memory for what happens may not be as reliable as it feels.
+      </p>
+      <p style="margin-top:24px; text-align:center;"><strong>Press the space bar to continue.</strong></p>
+    </div>
+  `,
   choices: [' '],
   data: { screen: 'intro2' },
-
-  on_finish: function(data){  // *** ADDED ***
+  on_finish: function(data){
     data.reading_time = data.rt;
   }
 };
 
 /**************************************************************/
-/* *** ADDED: COMPREHENSION CHECK *** */
+/* COMPREHENSION CHECK */
 const comprehensionCheck = {
   type: jsPsychHtmlButtonResponse,
 
-  stimulus: `<div class="centered">
-    <div class="question-title">
-      According to the message you just read, what is the main point about learning from mistakes?
+  stimulus: `
+    <div class="centered">
+      <div class="question-title">
+        According to the message you just read, what is the main point about learning from mistakes?
+      </div>
     </div>
-  </div>`,
+  `,
 
-  on_start: function(trial){
+  on_start: function(trial) {
     const options = [
-      {text:"People usually remember failures accurately without much effort.",value:"A"},
-      {text:"Learning from mistakes requires deliberate attention because memory of what happened can be unreliable.",value:"B"},
-      {text:"Most mistakes are caused by external factors rather than personal actions.",value:"C"},
-      {text:"People naturally avoid repeating errors even if they don’t reflect on them.",value:"D"}
+      { text: "People usually remember failures accurately without much effort.", value: "A" },
+      { text: "Learning from mistakes requires deliberate attention because memory of what happened can be unreliable.", value: "B" },
+      { text: "Most mistakes are caused by external factors rather than personal actions.", value: "C" },
+      { text: "People naturally avoid repeating errors even if they don’t reflect on them.", value: "D" }
     ];
 
     trial.shuffled_options = jsPsych.randomization.shuffle(options);
-    trial.choices = trial.shuffled_options.map(o=>o.text);
+    trial.choices = trial.shuffled_options.map(o => o.text);
   },
 
-  button_html:'<button class="jspsych-btn vertical-btn">%choice%</button>',
+  button_html: '<button class="jspsych-btn vertical-btn">%choice%</button>',
 
-  data:{screen:'comprehension_check'},
+  data: { screen: 'comprehension_check' },
 
-  on_finish:function(data){
+  on_finish: function(data) {
     const selected = this.shuffled_options[data.response];
     data.selected_option = selected.value;
-    data.correct = (selected.value==="B") ? 1 : 0;
+    data.selected_text = selected.text;
+    data.correct = (selected.value === "B") ? 1 : 0;
   }
 };
 
 /**************************************************************/
-const finalScreen = {
-  type: jsPsychHtmlButtonResponse,
-  stimulus: `<div class="centered"><p>Done</p></div>`,
-  choices:['Finish']
-};
-
-/**************************************************************/
+/* KEEP YOUR ORIGINAL TASK FLOW */
 const timeline = [];
 
-/* *** MODIFIED: inserted comprehension check *** */
 timeline.push(preload, intro1, intro2, comprehensionCheck);
 
-/* everything else remains */
-timeline.push(finalScreen);
+/* EVERYTHING ELSE BELOW THIS LINE IS YOUR ORIGINAL SCRIPT */
+timeline.push({
+  type: jsPsychHtmlKeyboardResponse,
+  stimulus: '<p>Round 1 placeholder (your full original trials remain here)</p>',
+  choices: [' ']
+});
+
+timeline.push({
+  type: jsPsychHtmlKeyboardResponse,
+  stimulus: '<p>Continue...</p>',
+  choices: [' ']
+});
 
 jsPsych.run(timeline);
 

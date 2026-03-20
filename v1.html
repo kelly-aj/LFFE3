@@ -95,12 +95,51 @@ const VERSION = "v1";
 const ROUND2_CORRECT_RULE = "same";
 const BREAK_SECONDS = 120;
 
-/* ✅ Your Qualtrics return link (which then sends to Prolific) */
 const QUALTRICS_RETURN_URL = "https://merceruniversity.co1.qualtrics.com/jfe/form/SV_eEG4o0S1x2n2DFI";
 
 /**************** INIT ****************/
 const jsPsych = initJsPsych({ display_element: 'jspsych-target' });
 jsPsych.data.addProperties({ version: VERSION });
+
+/**************** ***** ADDED: PAYLOAD BUILDER ***** ****************/
+function buildSummaryPayload() {
+  const all = jsPsych.data.get();
+
+  const r1 = all.filter({ round: 1 });
+  const r2 = all.filter({ round: 2 });
+
+  const r1_choices = r1.select('choice_label').values.join(',');
+  const r2_choices = r2.select('choice_label').values.join(',');
+
+  const r2_correct_arr = r2.select('correct').values.map(x => Number(x || 0));
+  const r2_correct = r2_correct_arr.join(',');
+  const r2_total = r2_correct_arr.reduce((a, b) => a + b, 0);
+
+  const rt_r1 = r1.select('rt').values.join(',');
+  const rt_r2 = r2.select('rt').values.join(',');
+
+  const breakRows = all.filter({}).values();
+  const music = (breakRows.length && breakRows[0].favorite_music) ? breakRows[0].favorite_music : "";
+  const music_short = music.length > 150 ? music.slice(0, 150) : music;
+
+  // ***** ADDED *****
+  const reading_time = all.filter({}).select('reading_time').values[0] || '';
+  const comp_correct = all.select('correct').values[0] || '';
+
+  return {
+    r1_choices,
+    r2_choices,
+    r2_correct,
+    r2_total: String(r2_total),
+    rt_r1,
+    rt_r2,
+    music_short,
+
+    // ***** ADDED *****
+    reading_time,
+    comp_correct
+  };
+}
 
 /**************** DATA ****************/
 const round1Questions = [
@@ -163,6 +202,8 @@ const comprehensionCheck = {
   stimulus: `<div class="centered"><div class="question-title">
   According to the message you just read, what is the main point about learning from mistakes?
   </div></div>`,
+  // ***** ADDED *****
+  data: { screen: 'comprehension' },
   on_start: function(){
     compOptions = jsPsych.randomization.shuffle([
       {text:"People usually remember failures accurately without much effort.",value:"A"},
@@ -189,6 +230,7 @@ function makeRound1Trial(i){
     choices: [imgChoice(pair.A,"A"), imgChoice(pair.B,"B")],
     on_finish: function(d){
       const c = (d.response===0) ? "A" : "B";
+      d.choice_label = c;
       round1Choices[i] = c;
     }
   };
@@ -276,6 +318,7 @@ function makeRound2Trial(i){
     choices: [imgChoice(pair.A,"A"), imgChoice(pair.B,"B")],
     on_finish: function(d){
       const c = (d.response===0) ? "A" : "B";
+      d.choice_label = c;
       d.correct = (c === round1Choices[i]) ? 1 : 0;
     }
   };
@@ -292,7 +335,21 @@ const finalScreen = {
   `,
   choices: ['Continue'],
   on_finish: function(){
-    window.location.href = QUALTRICS_RETURN_URL;
+
+    // ***** ADDED *****
+    const payload = buildSummaryPayload();
+
+    const params = new URLSearchParams(window.location.search);
+
+    const q = new URLSearchParams({
+      PROLIFIC_PID: params.get('PROLIFIC_PID') || '',
+      STUDY_ID: params.get('STUDY_ID') || '',
+      SESSION_ID: params.get('SESSION_ID') || '',
+      version: VERSION,
+      ...payload
+    });
+
+    window.location.href = `${QUALTRICS_RETURN_URL}?${q.toString()}`;
   }
 };
 

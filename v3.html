@@ -147,6 +147,26 @@ function buildSummaryPayload() {
   };
 }
 
+/**************** SEND DATA (NEW) ****************/
+function sendDataToQualtrics() {
+
+  const payload = buildSummaryPayload();
+
+  const params = new URLSearchParams(window.location.search);
+  const PROLIFIC_PID = params.get('PROLIFIC_PID') || '';
+  const STUDY_ID = params.get('STUDY_ID') || '';
+  const SESSION_ID = params.get('SESSION_ID') || '';
+
+  const q = new URLSearchParams({
+    PROLIFIC_PID,
+    STUDY_ID,
+    SESSION_ID,
+    version: VERSION,
+    ...payload
+  });
+
+  window.location.href = `${QUALTRICS_RETURN_URL}?${q.toString()}`;
+}
 /**************** DATA ****************/
 const round1Questions = [
   { pair:1, prompt:"Question #1. Which of the following characters in an ancient script represents an animal?" },
@@ -349,7 +369,7 @@ const finalScreen = {
   `,
   choices: ['Continue'],
   on_finish: function(){
-    window.location.href = QUALTRICS_RETURN_URL;
+  sendDataToQualtrics();
   }
 };
 

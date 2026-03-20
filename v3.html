@@ -101,7 +101,7 @@ const QUALTRICS_RETURN_URL = "https://merceruniversity.co1.qualtrics.com/jfe/for
 const jsPsych = initJsPsych({ display_element: 'jspsych-target' });
 jsPsych.data.addProperties({ version: VERSION });
 
-/**************** PAYLOAD BUILDER ****************/
+/**************** PAYLOAD ****************/
 function buildSummaryPayload() {
   const all = jsPsych.data.get().values();
 
@@ -113,14 +113,13 @@ function buildSummaryPayload() {
 
   const r2_correct_arr = r2.map(d => Number(d.correct || 0));
   const r2_correct = r2_correct_arr.join(',');
-  const r2_total = r2_correct_arr.reduce((a, b) => a + b, 0);
+  const r2_total = r2_correct_arr.reduce((a,b)=>a+b,0);
 
   const rt_r1 = r1.map(d => d.rt || '').join(',');
   const rt_r2 = r2.map(d => d.rt || '').join(',');
 
   const breakRow = all.find(d => d.favorite_music !== undefined);
-  const music = breakRow ? breakRow.favorite_music : "";
-  const music_short = music.length > 150 ? music.slice(0, 150) : music;
+  const music_short = breakRow ? (breakRow.favorite_music || '').slice(0,150) : '';
 
   const readingRow = all.find(d => d.reading_time !== undefined);
   const reading_time = readingRow ? readingRow.reading_time : '';
@@ -128,33 +127,17 @@ function buildSummaryPayload() {
   const compRow = all.find(d => d.screen === 'comprehension');
   const comp_correct = compRow ? compRow.correct : '';
 
-  return {
-    r1_choices,
-    r2_choices,
-    r2_correct,
-    r2_total: String(r2_total),
-    rt_r1,
-    rt_r2,
-    music_short,
-    reading_time,
-    comp_correct
-  };
+  return { r1_choices, r2_choices, r2_correct, r2_total, rt_r1, rt_r2, music_short, reading_time, comp_correct };
 }
 
-/**************** SEND DATA ****************/
 function sendDataToQualtrics() {
-
   const payload = buildSummaryPayload();
-
   const params = new URLSearchParams(window.location.search);
-  const PROLIFIC_PID = params.get('PROLIFIC_PID') || '';
-  const STUDY_ID = params.get('STUDY_ID') || '';
-  const SESSION_ID = params.get('SESSION_ID') || '';
 
   const q = new URLSearchParams({
-    PROLIFIC_PID,
-    STUDY_ID,
-    SESSION_ID,
+    PROLIFIC_PID: params.get('PROLIFIC_PID') || '',
+    STUDY_ID: params.get('STUDY_ID') || '',
+    SESSION_ID: params.get('SESSION_ID') || '',
     version: VERSION,
     ...payload
   });
@@ -186,159 +169,144 @@ const imagePairs = [
 
 const round1Choices = [null,null,null,null];
 
-function imgChoice(src, alt) {
+function imgChoice(src, alt){
   return `<img class="choice-img" src="${src}" alt="${alt}">`;
 }
 
-/**************** INTRO ****************/
-const intro1 = {
-  type: jsPsychHtmlKeyboardResponse,
-  stimulus: `<div class="centered">
-    <p>Welcome! Today you will answer some language questions about a researcher-manufactured ancient script.</p>
-    <p>Whether you get the answers right or wrong in Round 1, try to learn. Round 2 will test how much you learned.</p>
-    <p style="text-align:center;"><strong>Press space to continue.</strong></p>
-  </div>`,
-  choices: [' ']
-};
-
-const intro2 = {
-  type: jsPsychHtmlKeyboardResponse,
-  stimulus: `<div class="centered">
-    <p>People often assume they naturally learn from their mistakes, but research shows this process is more difficult and less automatic than it seems.</p>
-    <p>When something goes wrong, people frequently feel confident that they will remember what happened and why — yet those details are easy to misinterpret or forget. As a result, individuals may repeat the same errors without realizing it.</p>
-    <p>As you complete the next task, keep in mind that learning from failure requires deliberate attention and that your memory for what happens may not be as reliable as it feels.</p>
-    <p style="text-align:center;"><strong>Press space to begin Round 1.</strong></p>
-  </div>`,
-  choices: [' '],
-  on_finish: d => d.reading_time = d.rt
-};
-
 /**************** COMPREHENSION ****************/
-let compOptions = [];
-const comprehensionCheck = {
+let compOptions=[];
+const comprehensionCheck={
   type: jsPsychHtmlButtonResponse,
-  stimulus: `<div class="centered"><div class="question-title">
-  According to the message you just read, what is the main point about learning from mistakes?
-  </div></div>`,
-  data: { screen: 'comprehension' },
-  on_start: function(){
-    compOptions = jsPsych.randomization.shuffle([
+  stimulus:`<div class="centered"><div class="question-title">According to the message you just read, what is the main point about learning from mistakes?</div></div>`,
+  data:{screen:'comprehension'},
+  on_start:function(){
+    compOptions=jsPsych.randomization.shuffle([
       {text:"People usually remember failures accurately without much effort.",value:"A"},
       {text:"Learning from mistakes requires deliberate attention because memory of what happened can be unreliable.",value:"B"},
       {text:"Most mistakes are caused by external factors rather than personal actions.",value:"C"},
       {text:"People naturally avoid repeating errors even if they don’t reflect on them.",value:"D"}
     ]);
-    this.choices = compOptions.map(o=>o.text);
+    this.choices=compOptions.map(o=>o.text);
   },
-  button_html: `<button class="vertical-btn">%choice%</button>`,
-  on_finish: function(d){
-    const sel = compOptions[d.response];
-    d.correct = (sel.value==="B") ? 1 : 0;
+  button_html:`<button class="vertical-btn">%choice%</button>`,
+  on_finish:d=>{
+    const sel=compOptions[d.response];
+    d.correct=(sel.value==="B")?1:0;
   }
 };
 
 /**************** ROUND 1 ****************/
 function makeRound1Trial(i){
-  const pair = imagePairs[i];
-  const q = round1Questions[i];
-  return {
+  const pair=imagePairs[i];
+  const q=round1Questions[i];
+  return{
     type: jsPsychHtmlButtonResponse,
-    stimulus: `<div class="centered"><div class="question-title">${q.prompt}</div></div>`,
-    choices: [imgChoice(pair.A,"A"), imgChoice(pair.B,"B")],
-    data: { round:1 },
-    on_finish: function(d){
-      const c = (d.response===0) ? "A" : "B";
-      round1Choices[i] = c;
-      d.choice_label = c;
+    stimulus:`<div class="centered"><div class="question-title">${q.prompt}</div></div>`,
+    choices:[imgChoice(pair.A,"A"),imgChoice(pair.B,"B")],
+    data:{round:1},
+    on_finish:d=>{
+      const c=(d.response===0)?"A":"B";
+      round1Choices[i]=c;
+      d.choice_label=c;
     }
   };
 }
 
-const incorrectFeedback = {
+const incorrectFeedback={
   type: jsPsychHtmlKeyboardResponse,
-  stimulus: `<div class="centered">
-    <div class="incorrect-banner">YOU ANSWERED THIS QUESTION CORRECT!</div>
-    <div class="press-space">Press space to continue.</div>
-  </div>`,
+  stimulus:`<div class="centered"><div class="incorrect-banner">YOU ANSWERED THIS QUESTION CORRECT!</div><div class="press-space">Press space to continue.</div></div>`,
   choices:[' ']
 };
 
-/**************** BREAK ****************/
+/**************** BREAK (RESTORED CLOCK) ****************/
 let breakIntervalId=null;
 
-const breakScreen = {
+const breakScreen={
   type: jsPsychHtmlButtonResponse,
-  stimulus: `<div class="centered">
+  stimulus:`
+  <div class="centered">
     <p>Thanks for answering those initial questions. Right now, take a short breather.</p>
     <p><strong>Tell us: what is your favorite music to listen to?</strong></p>
     <p>Please take two minutes and write your answer in the textbox below.</p>
+
     <div class="break-box">
       <div style="flex:1;">
-        <textarea id="music"></textarea>
+        <textarea id="music" placeholder="Type your answer here..."></textarea>
       </div>
       <div class="countdown" id="countdown">2:00</div>
     </div>
-  </div>`,
-  choices: ['Submit'],
-  button_html: '<button class="jspsych-btn" disabled>%choice%</button>',
-  on_load: function(){
-    const btn = document.querySelector('button');
-    let total = BREAK_SECONDS;
-    breakIntervalId = setInterval(()=>{
+  </div>
+  `,
+  choices:['Submit'],
+  button_html:'<button class="jspsych-btn" type="button" disabled>%choice%</button>',
+
+  on_load:function(){
+    const btn=document.querySelector('.jspsych-html-button-response-button button');
+    const el=document.getElementById('countdown');
+
+    let total=BREAK_SECONDS;
+
+    function formatTime(s){
+      return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+    }
+
+    el.textContent=formatTime(total);
+
+    breakIntervalId=setInterval(()=>{
       total--;
+      el.textContent=formatTime(Math.max(total,0));
+
       if(total<=0){
         clearInterval(breakIntervalId);
+        breakIntervalId=null;
         btn.disabled=false;
       }
     },1000);
   },
-  on_finish: function(d){
-    const txt = document.getElementById('music');
-    d.favorite_music = txt ? txt.value : '';
+
+  on_finish:function(d){
+    if(breakIntervalId){
+      clearInterval(breakIntervalId);
+      breakIntervalId=null;
+    }
+    const txt=document.getElementById('music');
+    d.favorite_music=txt?txt.value:'';
   }
 };
 
 /**************** ROUND 2 ****************/
-const round2Intro = {
+const round2Intro={
   type: jsPsychHtmlKeyboardResponse,
-  stimulus: `<div class="centered">
-    <p><strong>This is Round 2.</strong></p>
-    <p>Based on what you learned about the researcher-manufactured ancient script in Round 1, answer the next four questions by selecting the appropriate image.</p>
-    <p style="text-align:center;"><strong>Press space bar to begin answering the questions.</strong></p>
-  </div>`,
+  stimulus:`<div class="centered"><p><strong>This is Round 2.</strong></p><p>Based on what you learned about the researcher-manufactured ancient script in Round 1, answer the next four questions by selecting the appropriate image.</p><p style="text-align:center;"><strong>Press space bar to begin answering the questions.</strong></p></div>`,
   choices:[' ']
 };
 
 function makeRound2Trial(i){
-  const pair = imagePairs[i];
-  return {
+  const pair=imagePairs[i];
+  return{
     type: jsPsychHtmlButtonResponse,
-    stimulus: `<div class="centered"><div class="question-title">${round2Questions[i]}</div></div>`,
-    choices: [imgChoice(pair.A,"A"), imgChoice(pair.B,"B")],
-    data: { round:2 },
-    on_finish: function(data){
-      const c = (data.response===0) ? "A" : "B";
-      const r1 = round1Choices[i];
-      data.choice_label = c;
-      data.correct = (c !== r1) ? 1 : 0;
+    stimulus:`<div class="centered"><div class="question-title">${round2Questions[i]}</div></div>`,
+    choices:[imgChoice(pair.A,"A"),imgChoice(pair.B,"B")],
+    data:{round:2},
+    on_finish:function(d){
+      const c=(d.response===0)?"A":"B";
+      const r1=round1Choices[i];
+      d.choice_label=c;
+      d.correct=(c!==r1)?1:0;
     }
   };
 }
 
 /**************** FINAL ****************/
-const finalScreen = {
+const finalScreen={
   type: jsPsychHtmlButtonResponse,
-  stimulus: `<div class="centered" style="text-align:center;">
-    <p><strong>Thank you for your participation!</strong></p>
-  </div>`,
+  stimulus:`<div class="centered" style="text-align:center;"><p><strong>Thank you for your participation!</strong></p></div>`,
   choices:['Continue'],
-  on_finish: function(){
-    sendDataToQualtrics();
-  }
+  on_finish:sendDataToQualtrics
 };
 
 /**************** TIMELINE ****************/
-const timeline = [];
+const timeline=[];
 
 timeline.push(intro1, intro2, comprehensionCheck);
 

@@ -104,6 +104,49 @@ const QUALTRICS_RETURN_URL = "https://merceruniversity.co1.qualtrics.com/jfe/for
 const jsPsych = initJsPsych({ display_element: 'jspsych-target' });
 jsPsych.data.addProperties({ version: VERSION });
 
+/**************** PAYLOAD BUILDER ****************/
+function buildSummaryPayload() {
+  const all = jsPsych.data.get().values();
+
+  // ***** FIXED: safer extraction *****
+  const r1 = all.filter(d => d.round === 1);
+  const r2 = all.filter(d => d.round === 2);
+
+  const r1_choices = r1.map(d => d.choice_label || '').join(',');
+  const r2_choices = r2.map(d => d.choice_label || '').join(',');
+
+  const r2_correct_arr = r2.map(d => Number(d.correct || 0));
+  const r2_correct = r2_correct_arr.join(',');
+  const r2_total = r2_correct_arr.reduce((a, b) => a + b, 0);
+
+  const rt_r1 = r1.map(d => d.rt || '').join(',');
+  const rt_r2 = r2.map(d => d.rt || '').join(',');
+
+  // ***** FIXED: correctly find break row *****
+  const breakRow = all.find(d => d.favorite_music !== undefined);
+  const music = breakRow ? breakRow.favorite_music : "";
+  const music_short = music.length > 150 ? music.slice(0, 150) : music;
+
+  // ***** FIXED: reliable extraction *****
+  const readingRow = all.find(d => d.reading_time !== undefined);
+  const reading_time = readingRow ? readingRow.reading_time : '';
+
+  const compRow = all.find(d => d.screen === 'comprehension');
+  const comp_correct = compRow ? compRow.correct : '';
+
+  return {
+    r1_choices,
+    r2_choices,
+    r2_correct,
+    r2_total: String(r2_total),
+    rt_r1,
+    rt_r2,
+    music_short,
+    reading_time,
+    comp_correct
+  };
+}
+
 /**************** DATA ****************/
 const round1Questions = [
   { pair:1, prompt:"Question #1. Which of the following characters in an ancient script represents an animal?" },
@@ -333,4 +376,3 @@ jsPsych.run(timeline);
 </script>
 </body>
 </html>
-``

@@ -92,7 +92,7 @@
 <script>
 
 /**************** CONFIG ****************/
-const VERSION = "v1";
+const VERSION = "v3";
 /* CHANGED: set to 'different' per your Version 2 scoring requirement */
 const ROUND2_CORRECT_RULE = "different";
 const BREAK_SECONDS = 120;
@@ -192,9 +192,9 @@ const intro2 = {
   type: jsPsychHtmlKeyboardResponse,
   stimulus: `
   <div class="centered">
-    <p>People use a variety of strategies to stay focused during everyday activities. Some individuals prefer quiet environments, while others find that background noise or music helps them concentrate.</p>
-    <p>People also differ in how they keep track of information, with some relying on mental notes and others using written reminders or digital tools. Factors such as lighting, time of day, and personal routines can influence how people approach tasks.</p>
-    <p>As you complete the next task, simply continue in whatever way feels natural to you.</p>
+    <p>People often assume they naturally learn from their mistakes, but research shows this process is more difficult and less automatic than it seems.</p>
+    <p>When something goes wrong, people frequently feel confident that they will remember what happened and why — yet those details are easy to misinterpret or forget. As a result, individuals may repeat the same errors without realizing it.</p>
+    <p>As you complete the next task, keep in mind that learning from failure requires deliberate attention and that your memory for what happens may not be as reliable as it feels.</p>
     <p style="text-align:center;"><strong>Press space to begin Round 1.</strong></p>
   </div>`,
   choices: [' '],
@@ -206,15 +206,15 @@ let compOptions = [];
 const comprehensionCheck = {
   type: jsPsychHtmlButtonResponse,
   stimulus: `<div class="centered"><div class="question-title">
-  According to the paragraph, how are people described as staying focused during everyday activities?
+  According to the message you just read, what is the main point about learning from mistakes?
   </div></div>`,
   data: { screen: 'comprehension' },
   on_start: function(){
     compOptions = jsPsych.randomization.shuffle([
-      {text:"Everyone concentrates best only in quiet environments.",value:"A"},
-      {text:"People use different strategies, such as choosing certain environments or using reminders.",value:"B"},
-      {text:"Most people rely solely on digital tools to stay focused.",value:"C"},
-      {text:"Lighting and time of day do not affect how people approach tasks.",value:"D"}
+      {text:"People usually remember failures accurately without much effort.",value:"A"},
+      {text:"Learning from mistakes requires deliberate attention because memory of what happened can be unreliable.",value:"B"},
+      {text:"Most mistakes are caused by external factors rather than personal actions.",value:"C"},
+      {text:"People naturally avoid repeating errors even if they don’t reflect on them.",value:"D"}
     ]);
     this.choices = compOptions.map(o=>o.text);
   },

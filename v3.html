@@ -41,6 +41,7 @@
       padding:12px;
     }
 
+    /* Keeping your original class name to avoid any other changes */
     .incorrect-banner {
       font-size:30px;
       font-weight:700;
@@ -92,9 +93,11 @@
 
 /**************** CONFIG ****************/
 const VERSION = "v1";
+/* CHANGED: set to 'different' per your Version 2 scoring requirement */
 const ROUND2_CORRECT_RULE = "different";
 const BREAK_SECONDS = 120;
 
+/* ✅ Your Qualtrics return link (which then sends to Prolific) */
 const QUALTRICS_RETURN_URL = "https://merceruniversity.co1.qualtrics.com/jfe/form/SV_eEG4o0S1x2n2DFI";
 
 /**************** INIT ****************/
@@ -105,6 +108,7 @@ jsPsych.data.addProperties({ version: VERSION });
 function buildSummaryPayload() {
   const all = jsPsych.data.get().values();
 
+  // ***** FIXED: safer extraction *****
   const r1 = all.filter(d => d.round === 1);
   const r2 = all.filter(d => d.round === 2);
 
@@ -118,10 +122,12 @@ function buildSummaryPayload() {
   const rt_r1 = r1.map(d => d.rt || '').join(',');
   const rt_r2 = r2.map(d => d.rt || '').join(',');
 
+  // ***** FIXED: correctly find break row *****
   const breakRow = all.find(d => d.favorite_music !== undefined);
   const music = breakRow ? breakRow.favorite_music : "";
   const music_short = music.length > 150 ? music.slice(0, 150) : music;
 
+  // ***** FIXED: reliable extraction *****
   const readingRow = all.find(d => d.reading_time !== undefined);
   const reading_time = readingRow ? readingRow.reading_time : '';
 
@@ -139,26 +145,6 @@ function buildSummaryPayload() {
     reading_time,
     comp_correct
   };
-}
-
-/**************** SEND DATA ****************/
-function sendDataToQualtrics() {
-  const payload = buildSummaryPayload();
-
-  const params = new URLSearchParams(window.location.search);
-  const PROLIFIC_PID = params.get('PROLIFIC_PID') || '';
-  const STUDY_ID = params.get('STUDY_ID') || '';
-  const SESSION_ID = params.get('SESSION_ID') || '';
-
-  const q = new URLSearchParams({
-    PROLIFIC_PID,
-    STUDY_ID,
-    SESSION_ID,
-    version: VERSION,
-    ...payload
-  });
-
-  window.location.href = `${QUALTRICS_RETURN_URL}?${q.toString()}`;
 }
 
 /**************** DATA ****************/
@@ -193,7 +179,8 @@ function imgChoice(src, alt) {
 /**************** INTRO ****************/
 const intro1 = {
   type: jsPsychHtmlKeyboardResponse,
-  stimulus: `<div class="centered">
+  stimulus: `
+  <div class="centered">
     <p>Welcome! Today you will answer some language questions about a researcher-manufactured ancient script.</p>
     <p>Whether you get the answers right or wrong in Round 1, try to learn. Round 2 will test how much you learned.</p>
     <p style="text-align:center;"><strong>Press space to continue.</strong></p>
@@ -203,14 +190,67 @@ const intro1 = {
 
 const intro2 = {
   type: jsPsychHtmlKeyboardResponse,
-  stimulus: `<div class="centered">
-    <p>People often assume they naturally learn from their mistakes...</p>
-    <p>When something goes wrong, people frequently feel confident...</p>
-    <p>As you complete the next task...</p>
+  stimulus: `
+  <div class="centered">
+    <p>People use a variety of strategies to stay focused during everyday activities. Some individuals prefer quiet environments, while others find that background noise or music helps them concentrate.</p>
+    <p>People also differ in how they keep track of information, with some relying on mental notes and others using written reminders or digital tools. Factors such as lighting, time of day, and personal routines can influence how people approach tasks.</p>
+    <p>As you complete the next task, simply continue in whatever way feels natural to you.</p>
     <p style="text-align:center;"><strong>Press space to begin Round 1.</strong></p>
   </div>`,
   choices: [' '],
   on_finish: d => d.reading_time = d.rt
+};
+
+/**************** COMPREHENSION CHECK ****************/
+let compOptions = [];
+const comprehensionCheck = {
+  type: jsPsychHtmlButtonResponse,
+  stimulus: `<div class="centered"><div class="question-title">
+  According to the paragraph, how are people described as staying focused during everyday activities?
+  </div></div>`,
+  data: { screen: 'comprehension' },
+  on_start: function(){
+    compOptions = jsPsych.randomization.shuffle([
+      {text:"Everyone concentrates best only in quiet environments.",value:"A"},
+      {text:"People use different strategies, such as choosing certain environments or using reminders.",value:"B"},
+      {text:"Most people rely solely on digital tools to stay focused.",value:"C"},
+      {text:"Lighting and time of day do not affect how people approach tasks.",value:"D"}
+    ]);
+    this.choices = compOptions.map(o=>o.text);
+  },
+  button_html: `<button class="vertical-btn">%choice%</button>`,
+  on_finish: function(d){
+    const sel = compOptions[d.response];
+    d.correct = (sel.value==="B") ? 1 : 0;
+  }
+};
+
+/**************** ROUND 1 ****************/
+function makeRound1Trial(i){
+  const pair = imagePairs[i];
+  const q = round1Questions[i];
+  return {
+    type: jsPsychHtmlButtonResponse,
+    stimulus: `<div class="centered"><div class="question-title">${q.prompt}</div></div>`,
+    choices: [imgChoice(pair.A,"A"), imgChoice(pair.B,"B")],
+    data: { round: 1 }, // ***** ADDED *****
+    on_finish: function(d){
+      const c = (d.response===0) ? "A" : "B";
+      d.choice_label = c;
+      round1Choices[i] = c;
+    }
+  };
+}
+
+/* CHANGED: Feedback message text only (keeping your original class & timing/flow) */
+const incorrectFeedback = {
+  type: jsPsychHtmlKeyboardResponse,
+  stimulus: `
+  <div class="centered">
+    <div class="incorrect-banner">YOU ANSWERED THIS QUESTION CORRECT!</div>
+    <div class="press-space">Press space to continue.</div>
+  </div>`,
+  choices:[' ']
 };
 
 /**************** BREAK ****************/
@@ -236,8 +276,7 @@ const breakScreen = {
   button_html: '<button class="jspsych-btn" type="button" disabled>%choice%</button>',
 
   on_load: function(){
-
-    const btn = document.querySelector('button'); /* ✅ FIXED */
+    const btn = document.querySelector('.jspsych-html-button-response-button button');
     const el = document.getElementById('countdown');
 
     let total = BREAK_SECONDS;
@@ -251,44 +290,102 @@ const breakScreen = {
     breakIntervalId = setInterval(()=>{
       total--;
       el.textContent = formatTime(Math.max(total,0));
-
-      if(total <= 0){
+      if(total<=0){
         clearInterval(breakIntervalId);
         btn.disabled = false;
       }
-
     },1000);
   },
 
   on_finish: function(d){
-    if (breakIntervalId !== null){
-      clearInterval(breakIntervalId);
-      breakIntervalId = null;
-    }
-
+    if(breakIntervalId){ clearInterval(breakIntervalId); }
     const txt = document.getElementById('music');
     d.favorite_music = txt ? txt.value : '';
   }
 };
 
-/**************** FINAL ****************/
+/**************** ROUND 2 INTRO ****************/
+const round2Intro = {
+  type: jsPsychHtmlKeyboardResponse,
+  stimulus: `
+  <div class="centered">
+    <p><strong>This is Round 2.</strong></p>
+    <p>Based on what you learned about the researcher-manufactured ancient script in Round 1, answer the next four questions by selecting the appropriate image.</p>
+    <p style="text-align:center;"><strong>Press space bar to begin answering the questions.</strong></p>
+  </div>`,
+  choices:[' ']
+};
+
+/**************** ROUND 2 ****************/
+function makeRound2Trial(i){
+  const pair = imagePairs[i];
+  return {
+    type: jsPsychHtmlButtonResponse,
+    stimulus: `<div class="centered"><div class="question-title">${round2Questions[i]}</div></div>`,
+    choices: [imgChoice(pair.A,"A"), imgChoice(pair.B,"B")],
+    data: { round: 2 }, // ***** ADDED *****
+    on_finish: function(data){
+      const choiceLabel = (data.response === 0) ? "A" : "B";
+      const r1Choice = round1Choices[i];
+
+      // ✅ Version 2 scoring: correct is NOT what they chose in Round 1 when rule === 'different'
+      const correct = (ROUND2_CORRECT_RULE === 'different')
+        ? (choiceLabel !== r1Choice)
+        : (choiceLabel === r1Choice);
+
+      // extra fields per your snippet
+      data.choice_label = choiceLabel;
+      data.chosen_image = (data.response === 0) ? pair.A : pair.B;
+      data.round1_choice_for_pair = r1Choice;
+      data.correct = correct ? 1 : 0;
+    }
+  };
+}
+
+/**************** FINAL SCREEN + REDIRECT ****************/
 const finalScreen = {
   type: jsPsychHtmlButtonResponse,
-  stimulus: `<div class="centered" style="text-align:center;">
+  stimulus: `
+  <div class="centered" style="text-align:center;">
     <p><strong>Thank you for your participation!</strong></p>
     <p>Click continue to return to Prolific.</p>
-  </div>`,
+  </div>
+  `,
   choices: ['Continue'],
   on_finish: function(){
-    sendDataToQualtrics();
+    const payload = buildSummaryPayload();
+
+    const params = new URLSearchParams(window.location.search);
+
+    const q = new URLSearchParams({
+      PROLIFIC_PID: params.get('PROLIFIC_PID') || '',
+      STUDY_ID: params.get('STUDY_ID') || '',
+      SESSION_ID: params.get('SESSION_ID') || '',
+      version: VERSION,
+      ...payload
+    });
+
+    window.location.href = `${QUALTRICS_RETURN_URL}?${q.toString()}`;
   }
 };
+
 
 /**************** TIMELINE ****************/
 const timeline = [];
 
-timeline.push(intro1, intro2);
-timeline.push(breakScreen);
+timeline.push(intro1, intro2, comprehensionCheck);
+
+for(let i=0;i<4;i++){
+  timeline.push(makeRound1Trial(i));
+  timeline.push(incorrectFeedback); // now shows: YOU ANSWERED THIS QUESTION CORRECT!
+}
+
+timeline.push(breakScreen, round2Intro);
+
+for(let i=0;i<4;i++){
+  timeline.push(makeRound2Trial(i));
+}
+
 timeline.push(finalScreen);
 
 jsPsych.run(timeline);
